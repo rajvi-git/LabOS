@@ -5,8 +5,9 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <string.h>
+#include<stdlib.h>
 
-
+#define SIZE 1024
 int A[] = {2,5,6,8,9};
 int main(int argc, char* argv[]){
     pid_t child=fork();
@@ -17,7 +18,7 @@ int main(int argc, char* argv[]){
     if(child ==0){
         int retval, shmid;
 	    void *memory = NULL;
-	    char *message;
+	    int *message;
         key_t key = ftok("shm.c", 0);
 
         shmid = shmget(key, SIZE, 0666|IPC_CREAT);
@@ -25,7 +26,7 @@ int main(int argc, char* argv[]){
             printf("Failed to create shared memory.\n");
             exit (1);
         }
-        printf("Shared memory is at %d\n", shmid);
+        //printf("Shared memory is at %d\n", shmid);
 
         // Attach
         memory = shmat(shmid, NULL, 0);
@@ -34,13 +35,13 @@ int main(int argc, char* argv[]){
             exit(1);
         }
 
-        message = (char *)memory;
+        message = (int *)memory;
         memset(message, '\0', SIZE);
         int squares[5];
         for(int i = 0; i<5;i++){
             squares[i]=A[i]*A[i];
         }
-        memcpy(message, (char *squares), strlen(char*squares));
+        memcpy(message, squares, sizeof(squares));
 
         // Detach
         retval = shmdt(memory);
@@ -54,11 +55,11 @@ int main(int argc, char* argv[]){
     else{
         sleep(1);
         int retval, shmid;
-        void *memory = NULL;
-        char *message;
+        int *memory;
+        int *message;
 
         // Initialization
-        key_t key = ftok("write.c", 0);
+        key_t key = ftok("shm.c", 0);
 
         shmid = shmget(key, SIZE, 0666);
         if(shmid < 0) {
@@ -68,7 +69,7 @@ int main(int argc, char* argv[]){
         printf("Shared memory is at %d\n", shmid);
 
         // Attach
-        memory = shmat(shmid, NULL, 0);
+        memory = (int *)shmat(shmid, NULL, 0);
         if(memory == NULL) {
             printf("Attach failed.\n");
             exit(1);
@@ -76,7 +77,7 @@ int main(int argc, char* argv[]){
 
         message = (char *)memory;
         for(int i =0;i<5;i++){
-            printf("%d",atoi(message[i]));
+            printf("%d\t",memory[i]);
         }
         //printf("MESSAGE is \"%s\"\n", message);
 
@@ -89,4 +90,9 @@ int main(int argc, char* argv[]){
 
         exit(0) ;
     }
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+		printf("Failed to destroy shared memory.\n");
+	} else {
+		printf("Shared memory destroyed.\n");
+	}
 }
